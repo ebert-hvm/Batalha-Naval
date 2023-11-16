@@ -119,6 +119,8 @@ class Server(StateMachine):
                         print('troca turno')
                         self._turn = 1 - self._turn
                 break
+        if self.gameIsFinished(self._turn):
+            return True
         for player in self._players:
             if player.getIndex() == 0:
                 grids = [self._grid[0].getGrid(), self._grid[1].gridToSend()]
@@ -127,7 +129,7 @@ class Server(StateMachine):
             print(grids)
             msg = {"player": self._turn, "gameState": grids}
             self.sendToPlayer(player, {**player.getBaseMessage("game"), **msg})
-        return self.gameIsFinished(self._turn)
+        return False
 
     def end(self):
         for player in self._players:
@@ -143,6 +145,7 @@ def main():
             server = Server()
             while(server.execute()):
                 pass
+            server.closeSocket()
         except KeyboardInterrupt:
             server.closeSocket()
             break
