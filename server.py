@@ -42,10 +42,10 @@ class Server(StateMachine):
     def listenToPlayer(self, socket):
         try:
             data = socket.recv(1024)
-            if data is None:
+            jsondata = json.loads(data.decode('utf-8'))
+            if data is None or jsondata is None:
                 raise Exception("disconnected")    
-            if data:
-                return json.loads(data.decode('utf-8'))
+            return jsondata
         except:
             raise Exception("connection closed")
     def closeSocket(self):
@@ -143,6 +143,7 @@ def main():
     while True:
         try:
             server = Server()
+            print('Server started')
             while(server.execute()):
                 pass
             server.closeSocket()
@@ -150,7 +151,7 @@ def main():
             server.closeSocket()
             break
         except Exception:
-            traceback.print_exc()
+            print('Connection reset')
             server.closeSocket()
             continue
 

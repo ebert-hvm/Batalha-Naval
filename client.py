@@ -17,7 +17,6 @@ class Client(StateMachine):
         self._communication = Communication(host, 0)
         # self._server = (json_config['server']['ip'], json_config['server']['port'])
         self._server = (json_config['server']['ip'], json_config['server']['port'])
-        self._communication.connect(self._server)
         self._id = ""
         self._playerIndex = 0
         self.turn = False
@@ -52,8 +51,11 @@ class Client(StateMachine):
     def connection(self):
         if self.stateChange:
             # self.sendMessage(CONNECTION_MESSAGE)
-            self._communication.startSending(CONNECTION_MESSAGE, self._server)
+            self._communication.connect(self._server)
+            time.sleep(0.2)
             self._communication.startReceiving()
+            time.sleep(0.2)
+            self._communication.startSending(CONNECTION_MESSAGE, self._server)
         if not self._communication.received():
             return False
         response = self._communication.getData()

@@ -112,8 +112,6 @@ def draw_menu():
     screen.fill(LIGHT_BLUE)
     screen.blit(title_text, title_rect)
     start_button.draw(screen)
-
-
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONDOWN:
             if start_button.is_clicked(event.pos):
@@ -521,7 +519,6 @@ try:
                 client.closeSocket()
                 pygame.quit()
                 sys.exit()
-
             if game_state == GAME_SETUP:
                 temp_ship = handle_ship_placement(event, ships, selected_ship, original_positions)
                 if temp_ship is not None:
