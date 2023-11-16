@@ -7,6 +7,8 @@ class StateMachine:
     def __init__(self):
         self._state = 0
         self.stateChange = True
+    def getState(self):
+        return self._state
     def connection(self):
         pass
     def setup(self):

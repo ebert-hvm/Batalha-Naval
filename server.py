@@ -29,8 +29,8 @@ class Server(StateMachine):
         self._communication = Communication(json_config['server']['ip'], json_config['server']['port'])
         self._players: list[Player] = []
         self._grid: list[Grid] = [
-            Grid(self._game_config['gridSize']),
-            Grid(self._game_config['gridSize'])
+            Grid(self._game_config['gridSize'], self._game_config['shipsNumber']),
+            Grid(self._game_config['gridSize'], self._game_config['shipsNumber'])
         ]
         self._turn = 0
         self._testFinishTimer = time.time()
@@ -79,18 +79,20 @@ class Server(StateMachine):
             if not grid.built:
                 return False
         return True
-    def gameIsFinished(self, x, y):
-        return time.time() > self._testFinishTimer + 10
+    def gameIsFinished(self, turn):
+        return self._grid[1 - turn].isFinished()
     def nextTurn(self, x, y):
         return 1 - self._turn
     def game(self):
         if self.stateChange:
-            self._testFinishTimer = time.time()
             print('game start')
             for player in self._players:
-                msg = {"player": self._turn, "gameState": [self._grid[0].gridToSend(), self._grid[1].gridToSend()]}
+                if player.getIndex() == 0:
+                    grids = [self._grid[0].getGrid(), self._grid[1].gridToSend()]
+                else:
+                    grids = [self._grid[0].gridToSend(), self._grid[1].getGrid()]
+                msg = {"player": self._turn, "gameState": grids}
                 self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
-                print('sent')
         dict, _ = self.listen()
         turnPlayer = None
         for player in self._players:
@@ -98,14 +100,18 @@ class Server(StateMachine):
                 turnPlayer = player
         if dict['action'] == 'game' and dict['clientId'] == turnPlayer.getUuid():
             x, y = dict['move']
-            print(f'move {x},{y}')
-            next_turn = self.nextTurn(x, y)
-            self._grid[self._turn].play(x,y)
-            self._turn = next_turn
+            print(f'player {self._turn} played {x},{y}')
+            if not self._grid[1 - self._turn].play(x,y):
+                self._turn = 1 - self._turn
             for player in self._players:
-                msg = {"player": self._turn, "gameState": [self._grid[0].gridToSend(), self._grid[1].gridToSend()]}
+                if player.getIndex() == 0:
+                    grids = [self._grid[0].getGrid(), self._grid[1].gridToSend()]
+                else:
+                    grids = [self._grid[0].gridToSend(), self._grid[1].getGrid()]
+                print(grids)
+                msg = {"player": self._turn, "gameState": grids}
                 self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
-            return self.gameIsFinished(x, y)
+            return self.gameIsFinished(self._turn)
         return False
 
     def end(self):
@@ -115,10 +121,16 @@ class Server(StateMachine):
         self._communication.closeSocket()
         return True
 
-def Main():
-    server = Server()
-    while(server.execute()):
-        pass
+def main():
+    while True:
+        try:
+            server = Server()
+            while(server.execute()):
+                pass
+        except KeyboardInterrupt:
+            break
+        else:
+            continue
 
 if __name__=='__main__':
-    Main()
+    main()
