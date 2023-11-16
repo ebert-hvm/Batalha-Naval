@@ -152,7 +152,7 @@ def draw_loading(client):
                 pygame.quit()
                 sys.exit()
         pygame.display.flip()
-        pygame.time.delay(100)  # Pequeno atraso para reduzir o uso da CPU
+        # pygame.time.delay(100)  # Pequeno atraso para reduzir o uso da CPU
 
 
 

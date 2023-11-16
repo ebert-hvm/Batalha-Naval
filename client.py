@@ -49,7 +49,8 @@ class Client(StateMachine):
   
     def connection(self):
         if self.stateChange:
-            self.sendMessage(CONNECTION_MESSAGE)
+            # self.sendMessage(CONNECTION_MESSAGE)
+            self._communication.startSending(CONNECTION_MESSAGE, self._server)
             self._communication.startReceiving()
         if not self._communication.received():
             return False
@@ -78,7 +79,8 @@ class Client(StateMachine):
         msg = {
             "shipsPosition": ships
         }
-        self.sendMessage({**self.getBaseMessage('setup'), **msg})
+        # self.sendMessage({**self.getBaseMessage('setup'), **msg})
+        self._communication.startSending({**self.getBaseMessage('setup'), **msg}, self._server)
         print('setup sent')
         self._communication.startReceiving()
  
@@ -87,7 +89,8 @@ class Client(StateMachine):
             print(f'making move: {x} {y}')
             if self._grid[1 - self._playerIndex].getGrid()[y][x] != Grid.EMPTY:
                 return
-            self.sendMessage({**self.getBaseMessage('game'), **{"move": [x,y]}})
+            self._communication.startSending({**self.getBaseMessage('game'), **{"move": [x,y]}}, self._server)
+            # self.sendMessage({**self.getBaseMessage('game'), **{"move": [x,y]}})
             self.turn = False
  
     def setup(self):

@@ -1,3 +1,4 @@
+import socket
 from communication import Communication
 from state_machine import StateMachine
 from grid import Grid
@@ -26,7 +27,9 @@ class Server(StateMachine):
         with open(CONFIGURATIONS_PATH, 'r') as file:
             json_config = json.load(file)
         self._game_config = json_config['gameConfigurations']
-        self._communication = Communication(json_config['server']['ip'], json_config['server']['port'])
+        host = socket.gethostbyname(socket.gethostname())
+        # self._communication = Communication(json_config['server']['ip'], json_config['server']['port'])
+        self._communication = Communication(host, 8888)
         self._players: list[Player] = []
         self._grid: list[Grid] = [
             Grid(self._game_config['gridSize'], self._game_config['shipsNumber']),
@@ -42,7 +45,8 @@ class Server(StateMachine):
     def generateUserID(self):
         return str(uuid.uuid4())
     def sendToPlayer(self, player, message, action):
-        self._communication.sendTo({**player.getBaseMessage(action), **message}, player.getAddress())
+        # self._communication.sendTo({**player.getBaseMessage(action), **message}, player.getAddress())
+        self._communication.startSending({**player.getBaseMessage(action), **message}, player.getAddress())
 
     def connection(self):
         dict, addr = self.listen()
@@ -65,7 +69,8 @@ class Server(StateMachine):
         if self.stateChange:
             for player in self._players:
                 msg = {**player.getBaseMessage("setup"), **{"configurations": self._game_config}}
-                self._communication.sendTo(msg, player.getAddress())
+                self._communication.startSending(msg, player.getAddress())
+                # self._communication.sendTo(msg, player.getAddress())
         
         dict, _ = self.listen()
         print('received')
@@ -92,7 +97,8 @@ class Server(StateMachine):
                 else:
                     grids = [self._grid[0].gridToSend(), self._grid[1].getGrid()]
                 msg = {"player": self._turn, "gameState": grids}
-                self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
+                # self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
+                self._communication.startSending({**player.getBaseMessage("game"), **msg}, player.getAddress())
         dict, _ = self.listen()
         turnPlayer = None
         for player in self._players:
@@ -110,14 +116,16 @@ class Server(StateMachine):
                     grids = [self._grid[0].gridToSend(), self._grid[1].getGrid()]
                 print(grids)
                 msg = {"player": self._turn, "gameState": grids}
-                self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
+                # self._communication.sendTo({**player.getBaseMessage("game"), **msg}, player.getAddress())
+                self._communication.startSending({**player.getBaseMessage("game"), **msg}, player.getAddress())
             return self.gameIsFinished(self._turn)
         return False
 
     def end(self):
         for player in self._players:
             msg = {"winner": self._turn}
-            self._communication.sendTo({**player.getBaseMessage("end"), **msg}, player.getAddress())
+            # self._communication.sendTo({**player.getBaseMessage("end"), **msg}, player.getAddress())
+            self._communication.startSending({**player.getBaseMessage("end"), **msg}, player.getAddress())
         self._communication.closeSocket()
         return True
 
@@ -129,7 +137,9 @@ def main():
                 pass
         except KeyboardInterrupt:
             break
-        else:
+        except Exception as ex:
+            print(ex)
+            server.closeSocket()
             continue
 
 if __name__=='__main__':
