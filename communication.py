@@ -1,3 +1,4 @@
+import threading
 import time
 import sys
 import asyncio
@@ -7,30 +8,48 @@ import json
 class Communication:
     def __init__(self, ip, port):
         self._host = (ip, port)
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(3000)
-        self._socket.bind(self._host)
-        print(self._socket.getsockname())
-        self._loop = asyncio.get_event_loop()
-        self.stop = asyncio.Event()
+        # print(self._socket.getsockname())
+        self.stop_receiving = threading.Event()
         self.received_data = []
         self.messageDict = None
         self.receiver = None
+    def connect(self, server):
+        print(f'connecting: {server[0]} {server[1]}')
+        self._socket.connect(server)
     def setTimeout(self, timeout):
         self._socket.settimeout(timeout)
+    def send(self):
+        try:
+            self._socket.sendall(json.dumps(self.messageDict).encode('utf-8'))
+        except socket.error:
+            pass
     def sendTo(self, messageDict, receiver):
         self._socket.sendto(json.dumps(messageDict).encode('utf-8'), receiver)
     def closeSocket(self):
+        self.stop_receiving.set()
+        time.sleep(1)  # To ensure sending/receiving threads finish
         self._socket.close()
+        
     def receive(self):
-        data, addr = self._socket.recvfrom(1024)
-        data = data.decode('utf-8')
-        json_data = json.loads(data)
-        return json_data, addr
+        self.received_data.clear()
+        while not self.stop_receiving.is_set():
+            try:
+                data = self._socket.recv(1024)
+                if data is not None:
+                    json_data = json.loads(data.decode('utf-8'))
+                    if json_data is not None:
+                        self.received_data.append(json_data)
+                else:
+                    socket.close()
+            except:
+                time.sleep(0.1)
+                continue
     def receiveAsync(self):
         self.received_data.append(self.receive())
     def received(self):
-        return bool(self.received_data)
+        return len(self.received_data) != 0
     def getData(self):
         return self.received_data.pop(0)
     def senToWrapper(self):
@@ -44,14 +63,13 @@ class Communication:
                 count_tries +=1
                 self.sendTo(self.messageDict, self.receiver)
     def startSending(self, messageDict, receiver):
-        self.sendTo(messageDict, receiver)
         self.messageDict = messageDict
         self.receiver = receiver
-        self._loop.run_in_executor(None, self.sendTo)
-    def stopSending(self):
-        self.stop.set()
+        send_thread = threading.Thread(target=self.send)
+        send_thread.start()
     def startReceiving(self):
-        self._loop.run_in_executor(None, self.receiveAsync)
+        receive_thread = threading.Thread(target=self.receive)
+        receive_thread.start()
     def stopReceiving(self):
-        self.stop_event.set()
+        self.stop_receiving.set()
         self.received_data.clear()

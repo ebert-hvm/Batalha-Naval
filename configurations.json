@@ -1,6 +1,6 @@
 {
     "server" : {
-        "ip": "172.20.10.4",
+        "ip": "172.15.3.109",
         "port": 8888
     },
     "gameConfigurations":{

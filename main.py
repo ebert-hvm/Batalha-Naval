@@ -514,96 +514,105 @@ client = Client()
 ships = []
 original_positions = {}
 # game_state = GAME_PLAY
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            client.closeSocket()
-            pygame.quit()
-            sys.exit()
+try:
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                client.closeSocket()
+                pygame.quit()
+                sys.exit()
 
-        if game_state == GAME_SETUP:
-            temp_ship = handle_ship_placement(event, ships, selected_ship, original_positions)
-            if temp_ship is not None:
-                selected_ship = temp_ship  # Atualiza o último navio selecionado
+            if game_state == GAME_SETUP:
+                temp_ship = handle_ship_placement(event, ships, selected_ship, original_positions)
+                if temp_ship is not None:
+                    selected_ship = temp_ship  # Atualiza o último navio selecionado
 
-            if rotate_button_rect and event.type == pygame.MOUSEBUTTONDOWN:
-                if rotate_button_rect.collidepoint(event.pos) and selected_ship:
-                    # Rotaciona o último navio selecionado
-                    selected_ship.rotate()
-                    # Verifica se a nova posição é válida após a rotação
-                    if not is_valid_position(selected_ship, ships):
-                        # Se não for válida, desfaz a rotação
+                if rotate_button_rect and event.type == pygame.MOUSEBUTTONDOWN:
+                    if rotate_button_rect.collidepoint(event.pos) and selected_ship:
+                        # Rotaciona o último navio selecionado
                         selected_ship.rotate()
+                        # Verifica se a nova posição é válida após a rotação
+                        if not is_valid_position(selected_ship, ships):
+                            # Se não for válida, desfaz a rotação
+                            selected_ship.rotate()
 
-            if event.type == pygame.MOUSEBUTTONDOWN and button_continue_rect.collidepoint(event.pos) and all_ships_positioned(ships):
-                # O jogador pressionou o botão "Continuar", muda para a tela de espera do adversário
-                shapes = [ship.getShape() for ship in ships]
-                print(shapes)
-                client.finishSetup(shapes)
-                game_state = GAME_WAITING_FOR_OPPONENT
+                if event.type == pygame.MOUSEBUTTONDOWN and button_continue_rect.collidepoint(event.pos) and all_ships_positioned(ships):
+                    # O jogador pressionou o botão "Continuar", muda para a tela de espera do adversário
+                    shapes = [ship.getShape() for ship in ships]
+                    print(shapes)
+                    client.finishSetup(shapes)
+                    game_state = GAME_WAITING_FOR_OPPONENT
 
-        if game_state == GAME_PLAY:
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                # Verifica se o clique foi no tabuleiro do inimigo
-                if ENEMY_BOARD_TOP_LEFT[0] <= pos[0] <= ENEMY_BOARD_TOP_LEFT[0] + GRID_CELL_SIZE * GRID_COLS and \
-                        ENEMY_BOARD_TOP_LEFT[1] <= pos[1] <= ENEMY_BOARD_TOP_LEFT[1] + GRID_CELL_SIZE * GRID_ROWS:
-                    register_attack(pos, ENEMY_BOARD_TOP_LEFT, client)
+            if game_state == GAME_PLAY:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = pygame.mouse.get_pos()
+                    # Verifica se o clique foi no tabuleiro do inimigo
+                    if ENEMY_BOARD_TOP_LEFT[0] <= pos[0] <= ENEMY_BOARD_TOP_LEFT[0] + GRID_CELL_SIZE * GRID_COLS and \
+                            ENEMY_BOARD_TOP_LEFT[1] <= pos[1] <= ENEMY_BOARD_TOP_LEFT[1] + GRID_CELL_SIZE * GRID_ROWS:
+                        register_attack(pos, ENEMY_BOARD_TOP_LEFT, client)
 
-        if game_state == GAME_END:
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                if menu_button.is_clicked(pos):
-                    reset_ship_positions(ships)  # Reseta a posição dos navios
-                    game_state = MENU  # Volta para o menu principal
-                elif revanche_button.is_clicked(pos):
-                    reset_ship_positions(ships)  # Reseta a posição dos navios
-                    game_state = GAME_SETUP  # Inicia uma nova partida
+            if game_state == GAME_END:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = pygame.mouse.get_pos()
+                    if menu_button.is_clicked(pos):
+                        reset_ship_positions(ships)  # Reseta a posição dos navios
+                        game_state = MENU  # Volta para o menu principal
+                        client.closeSocket()
+                        client = Client()
+                    elif revanche_button.is_clicked(pos):
+                        reset_ship_positions(ships)  # Reseta a posição dos navios
+                        game_state = LOADING  # Inicia uma nova partida
+                        client.closeSocket()
+                        client = Client()
 
-    screen.fill(LIGHT_BLUE)
+        screen.fill(LIGHT_BLUE)
 
-    if game_state == MENU:
-        draw_menu()
-    elif game_state == LOADING:
-        draw_loading(client)
-        ships = initialize_ships(client.getConfig())
-        original_positions = {ship: ship.position for ship in ships}
-    elif game_state == GAME_SETUP:
-        draw_game_setup(PLAYER_BOARD_TOP_LEFT)
+        if game_state == MENU:
+            draw_menu()
+        elif game_state == LOADING:
+            draw_loading(client)
+            ships = initialize_ships(client.getConfig())
+            original_positions = {ship: ship.position for ship in ships}
+        elif game_state == GAME_SETUP:
+            draw_game_setup(PLAYER_BOARD_TOP_LEFT)
 
-        if selected_ship and selected_ship.selected:
-            # Obtenha a posição atual do mouse
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            # Centraliza o navio no cursor do mouse
-            offset_x = mouse_x - selected_ship.rects[0].width // 2
-            offset_y = mouse_y - selected_ship.rects[0].height // 2
-            # Atualiza a posição do navio para seguir o mouse
-            selected_ship.set_position((offset_x, offset_y))
+            if selected_ship and selected_ship.selected:
+                # Obtenha a posição atual do mouse
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                # Centraliza o navio no cursor do mouse
+                offset_x = mouse_x - selected_ship.rects[0].width // 2
+                offset_y = mouse_y - selected_ship.rects[0].height // 2
+                # Atualiza a posição do navio para seguir o mouse
+                selected_ship.set_position((offset_x, offset_y))
 
-        button_continue = all_ships_positioned(ships)
+            button_continue = all_ships_positioned(ships)
 
-        draw_grid(PLAYER_BOARD_TOP_LEFT)  # Desenha o tabuleiro
-        button_continue_rect = draw_continue_button(button_continue)  # Desenha o botão "CONTINUAR"
-        rotate_button_rect = draw_rotate_button(screen, selected_ship is not None and selected_ship.selected)
+            draw_grid(PLAYER_BOARD_TOP_LEFT)  # Desenha o tabuleiro
+            button_continue_rect = draw_continue_button(button_continue)  # Desenha o botão "CONTINUAR"
+            rotate_button_rect = draw_rotate_button(screen, selected_ship is not None and selected_ship.selected)
 
-        # Redesenha todos os navios após movê-los
-        for ship in ships:
-            ship.draw(screen)
+            # Redesenha todos os navios após movê-los
+            for ship in ships:
+                ship.draw(screen)
 
-    elif game_state == GAME_WAITING_FOR_OPPONENT:
-        draw_waiting_for_opponent_screen(ships)
-        client.execute()
-        # print(client.getState() + " " + Client.GAME)
-        if client.getState() == Client.GAME:
-            game_state = GAME_PLAY
+        elif game_state == GAME_WAITING_FOR_OPPONENT:
+            draw_waiting_for_opponent_screen(ships)
+            client.execute()
+            # print(client.getState() + " " + Client.GAME)
+            if client.getState() == Client.GAME:
+                game_state = GAME_PLAY
 
-    elif game_state == GAME_PLAY:
-        client.execute()
-        draw_game_play_screen(client)
-        if client.getState() == Client.END:
-            game_state = GAME_END
+        elif game_state == GAME_PLAY:
+            client.execute()
+            draw_game_play_screen(client)
+            if client.getState() == Client.END:
+                game_state = GAME_END
 
-    elif game_state == GAME_END:
-        menu_button, revanche_button = draw_game_end_screen(client.haveIWon())
+        elif game_state == GAME_END:
+            menu_button, revanche_button = draw_game_end_screen(client.haveIWon())
 
-    pygame.display.flip()
+        pygame.display.flip()
+except KeyboardInterrupt:
+    client.closeSocket()
+    pygame.quit()
+

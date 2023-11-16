@@ -50,11 +50,14 @@ class Grid:
                         if self._grid[j][i] == self.EMPTY:
                             self._grid[j][i] = self.MISS
     def play(self, x, y):
+        print('play')
         if self._grid[y][x] == self.EMPTY:
             self._grid[y][x] = self.MISS
+            print('miss')
             return False
         elif self._grid[y][x] == self.SHIP:
             self._grid[y][x] = self.HIT
+            print('hit')
             for i, ship in enumerate(self.ships):
                 found = False
                 for j, tile in enumerate(ship):

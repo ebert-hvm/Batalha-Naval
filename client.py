@@ -4,6 +4,7 @@ from grid import Grid
 import json
 import time
 import socket
+import traceback
 
 CONFIGURATIONS_PATH = "configurations.json"
 CONNECTION_MESSAGE = {"action" : "connect"}
@@ -16,6 +17,7 @@ class Client(StateMachine):
         self._communication = Communication(host, 0)
         # self._server = (json_config['server']['ip'], json_config['server']['port'])
         self._server = (json_config['server']['ip'], json_config['server']['port'])
+        self._communication.connect(self._server)
         self._id = ""
         self._playerIndex = 0
         self.turn = False
@@ -54,17 +56,17 @@ class Client(StateMachine):
             self._communication.startReceiving()
         if not self._communication.received():
             return False
-        response, addr = self._communication.getData()
+        response = self._communication.getData()
+        print(response)
         if not self._connected:
-            if addr == self._server and response['action'] == 'connect':
+            if response['action'] == 'connect':
                 self._id = response['clientId']
                 self._playerIndex = response['player']
                 self._connected = True
                 print(self._playerIndex)
                 print(self._id)
-                self._communication.startReceiving()
             return False
-        if addr == self._server and response['action'] == 'setup' and response['clientId'] == self._id:
+        if response['action'] == 'setup' and response['clientId'] == self._id:
             self._config = response['configurations']
             self._grid[0] = Grid(self._config['gridSize'], self._config['shipsNumber'])
             self._grid[1] = Grid(self._config['gridSize'], self._config['shipsNumber'])
@@ -82,7 +84,6 @@ class Client(StateMachine):
         # self.sendMessage({**self.getBaseMessage('setup'), **msg})
         self._communication.startSending({**self.getBaseMessage('setup'), **msg}, self._server)
         print('setup sent')
-        self._communication.startReceiving()
  
     def makeMove(self, x, y):
         if self.turn:
@@ -92,13 +93,12 @@ class Client(StateMachine):
             self._communication.startSending({**self.getBaseMessage('game'), **{"move": [x,y]}}, self._server)
             # self.sendMessage({**self.getBaseMessage('game'), **{"move": [x,y]}})
             self.turn = False
- 
     def setup(self):
         if self.stateChange:
             print('setting up...')
         if self._communication.received():
-            dict, addr = self._communication.getData()
-            if addr == self._server and dict['action'] == 'game':
+            dict = self._communication.getData()
+            if dict['action'] == 'game':
                 self._grid[0].updateGrid(dict['gameState'][0])
                 self._grid[1].updateGrid(dict['gameState'][1])
                 if self._playerIndex == dict['player']:
@@ -109,27 +109,25 @@ class Client(StateMachine):
 
     def game(self):
         if self.stateChange:
-            self._communication.startReceiving()
             print('game start')
         if not self._communication.received():
             return False
-        dict, addr = self._communication.getData()
-        if addr == self._server:
-            if dict['action'] == 'end':
-                if dict['winner'] == self._playerIndex:
-                    print('GANHEI')
-                    self.won = True
-                else:
-                    print('PERDI')
-                return True
-            elif dict['action'] == 'game':
-                print(dict['gameState'])
-                self._grid[0].updateGrid(dict['gameState'][0])
-                self._grid[1].updateGrid(dict['gameState'][1])
-                if self._playerIndex == dict['player']:
-                    print('my turn')
-                    self.turn = True
-        self._communication.startReceiving()
+        dict = self._communication.getData()
+    
+        if dict['action'] == 'end':
+            if dict['winner'] == self._playerIndex:
+                print('GANHEI')
+                self.won = True
+            else:
+                print('PERDI')
+            return True
+        elif dict['action'] == 'game':
+            print(dict['gameState'])
+            self._grid[0].updateGrid(dict['gameState'][0])
+            self._grid[1].updateGrid(dict['gameState'][1])
+            if self._playerIndex == dict['player']:
+                print('my turn')
+                self.turn = True
         return False
   
     def end(self):
